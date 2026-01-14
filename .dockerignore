@@ -1,0 +1,11 @@
+.git
+build
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.tmp
+*.log
+.DS_Store
