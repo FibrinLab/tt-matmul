@@ -1,4 +1,4 @@
-ARG TT_BASE_IMAGE=ghcr.io/tenstorrent/tt-metal:latest
+ARG TT_BASE_IMAGE=docker build -t tt-matmul --build-arg TT_BASE_IMAGE=ghcr.io/tenstorrent/tt-metal/tt-metalium/ubuntu-20.04-dev-amd64:aa43a5fc7d3f0e4ed0142d9bd1357912d9a2a5f7
 
 FROM ${TT_BASE_IMAGE} AS build
 WORKDIR /src

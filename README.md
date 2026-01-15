@@ -60,7 +60,7 @@ If the binary is not in the current directory, set `TT_MATMUL_BIN` to its path.
 Pick a base image that already includes TT-Metal + build tools.
 
 ```bash
-docker build -t tt-matmul --build-arg TT_BASE_IMAGE=ghcr.io/tenstorrent/tt-metal:latest .
+docker build -t tt-matmul --build-arg TT_BASE_IMAGE=ghcr.io/tenstorrent/tt-metal/tt-metalium-ubuntu-22.04-amd64-release:latest-rc .
 ```
 
 Runtime:
