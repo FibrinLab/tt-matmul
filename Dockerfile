@@ -15,7 +15,8 @@ ARG TT_METAL_INSTALL
 WORKDIR /app
 
 RUN apt-get update -y && \
-    apt-get install -y git cmake ninja-build build-essential python3 python3-venv && \
+    apt-get install -y git cmake ninja-build build-essential python3 python3-venv \
+      libfmt-dev nlohmann-json3-dev libspdlog-dev && \
     rm -rf /var/lib/apt/lists/*
 
 RUN git clone --depth 1 --recurse-submodules --shallow-submodules --branch "${TT_METAL_REF}" \
@@ -41,7 +42,9 @@ RUN TT_METALIUM_CONFIG="$(find "${TT_METAL_INSTALL}" -name TT-MetaliumConfig.cma
       exit 1; \
     fi && \
     TT_METALIUM_DIR="$(dirname "${TT_METALIUM_CONFIG}")" && \
-    cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=Release -DTT-Metalium_DIR="${TT_METALIUM_DIR}" && \
+    cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=Release \
+      -DTT-Metalium_DIR="${TT_METALIUM_DIR}" \
+      -DCMAKE_PREFIX_PATH="${TT_METAL_INSTALL}" && \
     cmake --build /app/build -j
 
 ENV TT_MATMUL_KERNEL_DIR=/app/kernels
