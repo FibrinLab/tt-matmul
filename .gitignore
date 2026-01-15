@@ -1,4 +1,5 @@
 build/
+.tt-metal/
 *.o
 *.a
 *.so
