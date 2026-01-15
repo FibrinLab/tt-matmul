@@ -57,32 +57,34 @@ If the binary is not in the current directory, set `TT_MATMUL_BIN` to its path.
 
 ## Docker (Koyeb)
 
-Pick a base image that already includes TT-Metal + build tools.
+The Dockerfile defaults to a TT-Metalium dev image and builds TT-Metal from source during the image build.
+This is the most reliable option, but it can take a while.
 
 ```bash
-docker build -t tt-matmul \\
-  --build-arg TT_PLATFORM=linux/amd64 \\
-  --build-arg TT_BASE_IMAGE=ghcr.io/tenstorrent/tt-metal/tt-metalium/ubuntu-20.04-dev-amd64:aa43a5fc7d3f0e4ed0142d9bd1357912d9a2a5f7 \\
-  .
+docker build -t tt-matmul .
 ```
 
 Runtime:
 - The image sets `TT_MATMUL_KERNEL_DIR=/app/kernels`.
 - Provide a seed file or use `scripts/run_from_api.sh` inside the container.
 
-If CMake cannot find TT-Metalium, pass the install path using a build arg:
+To override the base image, platform, or TT-Metal git ref, pass build args:
 
 ```bash
 docker build -t tt-matmul \\
-  --build-arg TT_METALIUM_DIR=/path/to/TT-MetaliumConfig.cmake/dir \\
+  --build-arg TT_PLATFORM=linux/amd64 \\
+  --build-arg TT_BASE_IMAGE=ghcr.io/tenstorrent/tt-metal/tt-metalium/ubuntu-22.04-dev-amd64:latest \\
+  --build-arg TT_METAL_REF=main \\
   .
 ```
 
-If the base image sets `TT_METAL_HOME` but you need to override it, use:
+If you want to keep the tt-metal source/build outside `/opt`, override these too:
 
 ```bash
 docker build -t tt-matmul \\
-  --build-arg TT_METAL_HOME_OVERRIDE=/path/to/tt-metal \\
+  --build-arg TT_METAL_SRC=/custom/tt-metal-src \\
+  --build-arg TT_METAL_BUILD=/custom/tt-metal-build \\
+  --build-arg TT_METAL_INSTALL=/custom/tt-metal-install \\
   .
 ```
 

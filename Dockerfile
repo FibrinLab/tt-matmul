@@ -1,36 +1,48 @@
 ARG TT_PLATFORM=linux/amd64
-ARG TT_BASE_IMAGE=ghcr.io/tenstorrent/tt-metal/tt-metalium/ubuntu-20.04-dev-amd64:aa43a5fc7d3f0e4ed0142d9bd1357912d9a2a5f7
+ARG TT_BASE_IMAGE=ghcr.io/tenstorrent/tt-metal/tt-metalium/ubuntu-22.04-dev-amd64:latest
+ARG TT_METAL_REF=main
+ARG TT_METAL_SRC=/opt/tt-metal-src
+ARG TT_METAL_BUILD=/opt/tt-metal-build
+ARG TT_METAL_INSTALL=/opt/tt-metal
 
-FROM --platform=$TT_PLATFORM ${TT_BASE_IMAGE} AS build
-WORKDIR /src
-COPY . .
-ARG TT_METALIUM_DIR=
-ARG TT_METAL_HOME_OVERRIDE=
-RUN TT_METALIUM_DIR="${TT_METALIUM_DIR}" && \
-    TT_METAL_HOME_EFFECTIVE="${TT_METAL_HOME_OVERRIDE:-${TT_METAL_HOME}}" && \
-    if [ -n "${TT_METAL_HOME_EFFECTIVE}" ]; then export TT_METAL_HOME="${TT_METAL_HOME_EFFECTIVE}"; fi && \
-    if [ -z "${TT_METALIUM_DIR}" ]; then \
-      TT_METALIUM_CONFIG="$(find / -name TT-MetaliumConfig.cmake -print -quit 2>/dev/null)" && \
-      if [ -z "${TT_METALIUM_CONFIG}" ]; then \
-        TT_METALIUM_CONFIG="$(find / -name tt-metalium-config.cmake -print -quit 2>/dev/null)"; \
-      fi && \
-      if [ -n "${TT_METALIUM_CONFIG}" ]; then \
-        TT_METALIUM_DIR="$(dirname "${TT_METALIUM_CONFIG}")"; \
-      fi; \
-    fi && \
-    echo "TT_METAL_HOME=${TT_METAL_HOME}" && \
-    echo "TT_METALIUM_DIR=${TT_METALIUM_DIR}" && \
-    if [ -n "${TT_METALIUM_DIR}" ]; then \
-      cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTT-Metalium_DIR="${TT_METALIUM_DIR}"; \
-    else \
-      cmake -S . -B build -DCMAKE_BUILD_TYPE=Release; \
-    fi
-RUN cmake --build build -j
+FROM --platform=$TT_PLATFORM ${TT_BASE_IMAGE}
 
-FROM --platform=$TT_PLATFORM ${TT_BASE_IMAGE} AS runtime
+ARG TT_METAL_REF
+ARG TT_METAL_SRC
+ARG TT_METAL_BUILD
+ARG TT_METAL_INSTALL
+
 WORKDIR /app
-COPY --from=build /src/build/tt_matmul_bench /app/tt_matmul_bench
-COPY kernels /app/kernels
-COPY scripts /app/scripts
+
+RUN apt-get update -y && \
+    apt-get install -y git cmake ninja-build build-essential python3 python3-venv && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 --recurse-submodules --shallow-submodules --branch "${TT_METAL_REF}" \
+    https://github.com/tenstorrent/tt-metal.git "${TT_METAL_SRC}"
+
+WORKDIR ${TT_METAL_SRC}
+RUN ./build_metal.sh \
+    --build-dir "${TT_METAL_BUILD}" \
+    --install-prefix "${TT_METAL_INSTALL}" \
+    --release \
+    --without-python-bindings
+
+WORKDIR /app
+COPY . /app
+
+ENV TT_METAL_HOME=${TT_METAL_SRC}
+RUN TT_METALIUM_CONFIG="$(find "${TT_METAL_INSTALL}" -name TT-MetaliumConfig.cmake -print -quit 2>/dev/null)" && \
+    if [ -z "${TT_METALIUM_CONFIG}" ]; then \
+      TT_METALIUM_CONFIG="$(find "${TT_METAL_INSTALL}" -name tt-metalium-config.cmake -print -quit 2>/dev/null)"; \
+    fi && \
+    if [ -z "${TT_METALIUM_CONFIG}" ]; then \
+      echo "TT-MetaliumConfig.cmake not found under ${TT_METAL_INSTALL}" >&2; \
+      exit 1; \
+    fi && \
+    TT_METALIUM_DIR="$(dirname "${TT_METALIUM_CONFIG}")" && \
+    cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=Release -DTT-Metalium_DIR="${TT_METALIUM_DIR}" && \
+    cmake --build /app/build -j
+
 ENV TT_MATMUL_KERNEL_DIR=/app/kernels
-ENTRYPOINT ["/app/tt_matmul_bench"]
+ENTRYPOINT ["/app/build/tt_matmul_bench"]
